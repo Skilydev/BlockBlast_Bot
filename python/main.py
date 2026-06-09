@@ -1,18 +1,45 @@
-import subprocess
+# Fichier principal.
+
+# Dans ce programme, la notation "objet" (ou "obj") désigne
+# une des pièces avec laquelle le joueur peut interagir.
+#
+# La notation "bloc" désigne un carré qui constitue un objet
+# ou un carré qui remplit la grille.
+#
+# Un objet sous forme de "coord" ou de "pos" représente 
+# la position de ses bloc par rapport au premier.
+#
+# Ex : Un objet en forme de L de trois bloc peut être représenté 
+# sous forme de "coord" comme ci dessous :
+# ((0, 0),(0, 1),(1, 1)) 
+# Les nombres représentant un décalage en x et y :
+# (0, 0) : premier bloc / (0, 1) : bloc avec un décalage de 0 en x et 1 en y /
+# (1, 1) : bloc avec un décalage de 1 en x et 1 en y
+#
+#
+# La notation "grille" désigne à la fois la grille principale
+# et les grilles définissant les objets.
+
 import time
 
-from PIL import Image
-from itertools import permutations
-from copy import deepcopy
-from tqdm import tqdm
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from PIL import Image # Analyse d'image
+from itertools import permutations # Permutations
+from copy import deepcopy # Copie profonde
+from tqdm import tqdm # Barre de progression
+from concurrent.futures import ProcessPoolExecutor, as_completed # Multi-coeur
 
-from list_blocks import blocks, specific_blocks
+import adbconnect # Liaison téléphone
+from list_objs import specific_objs # Objets spéciaux
+
+
+# Global
+PARENT_IMG_FOLDER = "./img/" # /!\ IMPORTANT : ce dossier doit être préalablement créé.
+# Dossier dans lequel sera stockée l'image
 
 # Reflexion
-MAX_ASYNC_TASK = 3
+MAX_ASYNC_TASK = 3 # Nb maximal de coeur utilisé pour le calcul
 
-REFLEXION_STEP = 3
+REFLEXION_STEP = 3 # Nb d'étapes de reflexion
 UIB_4_MULT = 3 # Multiplicateur pour les cases vides avec 4 voisines vides
 UIB_3_MULT = 2 # Multiplicateur pour les cases vides avec 3 voisines vides
 UIB_2_MULT = -1 # Multiplicateur pour les cases vides avec 2 voisines vides
@@ -22,54 +49,65 @@ IB_0_MULT = -2 # Multiplicateur pour les cases vides avec 0 voisine vide
 IFB_MULT = -5 # Multiplicateur pour les cases pleines avec 0 voisines pleines
 UIFB_1_MULT = -4 # Multiplicateur pour les cases pleines avec seulement 1 voisine pleine
 
-B3X3 = ((0, 0), (1, 0), (2, 0), (0, 1), (1, 1), (2, 1), (0, 2), (1, 2), (2, 2))
-B3X3_POINT = 25
-B1X5 = ((0, 0), (0, 1), (0, 2), (0, 3), (0, 4))
-B1X5_POINT = 15
-B5X1 = ((0, 0), (1, 0), (2, 0), (3, 0), (4, 0))
-B5X1_POINT = 15
+O3X3 = ((0, 0), (1, 0), (2, 0), (0, 1), (1, 1), (2, 1), (0, 2), (1, 2), (2, 2)) # Objet 3x3
+O3X3_POINT = 25 # Points attribués si un 3x3 rentre dans la grille
+O1X5 = ((0, 0), (0, 1), (0, 2), (0, 3), (0, 4)) # Objet 1x5
+O1X5_POINT = 15 # Points attribués si un 1x5 rentre dans la grille
+O5X1 = ((0, 0), (1, 0), (2, 0), (3, 0), (4, 0)) # Objet 5x1
+O5X1_POINT = 15 # Points attribués si un 5x1 rentre dans la grille
 
-# Déplacements
+# Déplacements /!\ specifique à l'app BlockBlast /!\
 INCREASE_Y = 308
 ky = 1.33
 kx = 1.3
 
-# Grille
-X_START_GRID = 120
-Y_START_GRID = 610
+# Grille principale /!\ specifique à l'app BlockBlast /!\
+X_START_GRID = 120 # Position en x de départ de la grille 
+Y_START_GRID = 610 # Position en y de départ de la grille 
 
-NB_ROWS = 8
-NB_COLUMNS = 8
-BLOCK_SIZE = 120
+NB_ROWS = 8 # Nb de lignes de la grille
+NB_COLUMNS = 8 # Nb de colonnes de la grille
+BLOCK_SIZE = 120 # Taille d'une case
 
-COLOR_EMPTY = (25, 36, 66, 255)
-TOLERANCE_GRID = 10
-PRINT_GRID = True
+COLOR_EMPTY = (25, 36, 66, 255) # Couleur si aucun bloc dans case
+TOLERANCE_GRID = 10 # Tolerance pour la couleur
+PRINT_GRID = True # Doit on afficher la grille dans la console ?
 
-# Grilles des objets
-X_START_OBJ_GRID = (158.5, 471.5, 786.5)
-Y_START_OBJ_GRID = 1721.5
+# Grilles des objets /!\ specifique à l'app BlockBlast /!\
+X_START_OBJ_GRID = (158.5, 471.5, 786.5) # Positions en x de départ des grilles objets
+Y_START_OBJ_GRID = 1721.5 # Position en y de départ des grilles objets
 
-NB_ROWS_OBJ = 6
-NB_COLUMNS_OBJ = 6
-BLOCK_SIZE_OBJ = 27
+NB_ROWS_OBJ = 6 # Nb de lignes d'une grille objet
+NB_COLUMNS_OBJ = 6 # Nb de colonnes d'une grille objet
+BLOCK_SIZE_OBJ = 27 # Taille d'une case d'une grille objet
 
-COLOR_EMPTY_OBJ = (58, 81, 148, 255)
-TOLERANCE_OBJ_GRID = 25
-PRINT_OBJECTS = True
+COLOR_EMPTY_OBJ = (58, 81, 148, 255) # Couleur si aucun bloc dans case de grille objet
+TOLERANCE_OBJ_GRID = 25 # Tolerance pour la couleur
+PRINT_OBJECTS = True # Doit on afficher les objets dans la console ?
 
-# Objets spécifiques
-i_horizontal_B3 = 0
-i_vertical_B3 = 1
+# Objets spécifiques /!\ specifique à l'app BlockBlast /!\
+i_horizontal_B3 = 0 # Index de la barre horizontale de 3 bloc dans specific_objs
+i_vertical_B3 = 1 # Index de la barre verticale de 3 bloc dans specific_objs
+
+deviceconfigured = False # NE PAS TOUCHER
+nameIMG = "" # NE PAS TOUCHER
+pathIMG = "" # NE PAS TOUCHER
+
 
 # Classe des solutions virtuelles
 class VirtualSolution:
     def __init__(self, order_obj):
-        self.grid = ()
+        self.grid = () # Grille finale de la solution
 
-        self.pos_obj = ()
+        self.pos_obj = () # liste des positions des objets
+
         self.pass_by_empty_grid = False
-        self.order = order_obj
+        # La solution passe t-elle par une grille entièrement vide ?
+        # Le jeu attribue des points bonus si la grille est vidée entièrement
+        # durant le placement d'un des trois objets. Ainsi, les solutions
+        # qui remplissent cette condition sont valorisées.
+
+        self.order = order_obj # L'ordre des objets à placer
 
     def addObj(self, new_grid, pos_obj):
         self.grid = new_grid
@@ -77,46 +115,7 @@ class VirtualSolution:
         self.pass_by_empty_grid = self.pass_by_empty_grid or 1 not in new_grid
 
 
-
-# Tout ce qui est lié à l'écran
-def capture_screen():
-    subprocess.check_output(["adb", "shell", "input", "tap", "0", "0"])
-    data = subprocess.check_output(["adb", "exec-out", "screencap", "-p"])
-
-    with open("screen.png", "wb") as f:
-        f.write(data)
-
-def get_color_pixel(x, y, screen):
-    return screen.getpixel((x, y))
-
-def move_block(pixel_from, pixel_to):
-    # Notre objet doit aller de A0 à B0. 
-    # Lorsque l'on clique sur l'obj, il est décalé en y (INCREASE_Y).
-    # Notre objet est donc à la position A1, alors que la souris est en A0.
-    # La souris doit donc aller en B1 (image de B + INCREASE_Y) pour que l'objet soit en B0.
-    # En allant de A à B1, il y a une accélération de l'objet.
-    # La souris doit donc aller en p_accel, qui est le point entre A et B1 
-    # qui prend en compte l'accélération pour que l'objet arrive pile sur B.
-    
-    B1 = (pixel_to[0], pixel_to[1] + INCREASE_Y)    # Arrivée - le décalage en cliquant sur l'obj = B1
-
-    dcx = B1[0] - pixel_from[0]
-    dcy = B1[1] - pixel_from[1]
-
-    dcx_accel = dcx/kx
-    dcy_accel = dcy/ky
-
-    p_accel = (pixel_from[0] + dcx_accel, pixel_from[1] + dcy_accel)
-
-    output = subprocess.check_output([
-        "adb", "shell", "input", "touchscreen", "swipe",
-        str(pixel_from[0]), str(pixel_from[1]),
-        str(p_accel[0]), str(p_accel[1]),
-        "1000"
-    ])
-
-    print(f"Objet placé ici : x: {p_accel[0]} y: {p_accel[1]}\n\tdcy: {dcy} dcx: {dcx}")
-
+# Tout ce qui est lié à l'analyse
 def get_grid_filling(screen, columns, rows, start_x, start_y, b_size, color_bloc_empty, tolerance, to_print):
     filling = ()
     for i in range(columns * rows):
@@ -145,6 +144,9 @@ def get_grid_filling(screen, columns, rows, start_x, start_y, b_size, color_bloc
                 print(" X ", end="")
     return filling
 
+def get_color_pixel(x, y, screen):
+    return screen.getpixel((x, y))
+
 
 # Tout ce qui est lié aux calculs
 def put_in_grid(grid, list_obj, order_obj, original_solution, stop_at_first):
@@ -169,11 +171,12 @@ def put_in_grid(grid, list_obj, order_obj, original_solution, stop_at_first):
             dcx = vB[0] # dcx = décalage en x = 1ère valeur du tuple
             dcy = vB[1] # dcy = décalage en y = 2ème valeur du tuple
 
-            posBloc = iG + dcx + NB_ROWS * dcy # La position du bloc = pos du bloc d'origine de l'objet + décalage en x + décalage en y * nb de ligne
+            posBloc = iG + dcx + NB_ROWS * dcy
+            # La position du bloc dans la grille = pos du bloc d'origine de l'objet + décalage en x + décalage en y * nb de ligne
 
             if posBloc >= 64 or posBloc < 0 or act_column + dcx > 8 or act_column + dcx < 1:
                 can_place_obj = False
-                break
+                break # Limites
 
             if grid[posBloc] == 0:
                 new_grid[posBloc] = 1
@@ -205,6 +208,8 @@ def put_in_grid(grid, list_obj, order_obj, original_solution, stop_at_first):
         list_solution = deepcopy(complete_slt)
 
     return list_solution
+
+     # Récurence jusqu'au placement de tous les objets
 
 def reduce_grid(grid):
     columns_filling = [[] for _ in range(NB_COLUMNS)] # Créer une liste avec NB_COLUMNS liste vide dedans
@@ -302,20 +307,23 @@ def calculate_score(solution, max_score):
     score = unisolated_4_eBox * UIB_4_MULT + unisolated_3_eBox * UIB_3_MULT + unisolated_2_eBox * UIB_2_MULT + unisolated_1_eBox * UIB_1_MULT + isolated_eBox * IB_0_MULT
     score += isolated_fBox * IFB_MULT + isolated_1_fBox * UIFB_1_MULT
 
-    if REFLEXION_STEP == 1 or (max_score - score) > (B3X3_POINT + B1X5_POINT + B5X1_POINT):
+    if REFLEXION_STEP == 1 or (max_score - score) > (O3X3_POINT + O1X5_POINT + O5X1_POINT):
         return score
     
-    can_place_3x3 = len(put_in_grid(solution.grid, (B3X3,), 0, None, True)) > 0
+    can_place_3x3 = len(put_in_grid(solution.grid, (O3X3,), 0, None, True)) > 0
 
-    score += can_place_3x3 * B3X3_POINT
+    score += can_place_3x3 * O3X3_POINT
+    # Point bonus si la grille finale permet de placer un 3x3
 
-    if REFLEXION_STEP == 2 or (max_score - score) > (B1X5_POINT + B5X1_POINT):
+    if REFLEXION_STEP == 2 or (max_score - score) > (O1X5_POINT + O5X1_POINT):
         return score
 
-    can_place_1x5 = len(put_in_grid(solution.grid, (B1X5,), 0, None, True)) > 0
-    can_place_5x1 = len(put_in_grid(solution.grid, (B5X1,), 0, None, True)) > 0
+    can_place_1x5 = len(put_in_grid(solution.grid, (O1X5,), 0, None, True)) > 0
+    can_place_5x1 = len(put_in_grid(solution.grid, (O5X1,), 0, None, True)) > 0
 
-    score += can_place_1x5 * B1X5_POINT + can_place_5x1 * B5X1_POINT
+    score += can_place_1x5 * O1X5_POINT + can_place_5x1 * O5X1_POINT
+    # Point bonus si la grille finale permet de placer un 1x5
+    # Point bonus si la grille finale permet de placer un 5x1
 
     if REFLEXION_STEP == 3:
         return score
@@ -324,38 +332,45 @@ def calculate_score(solution, max_score):
 
 
 # Tout ce qui est lié aux objets
-def center_the_block(original_pos, obj):
-    col_bloc = original_pos % NB_COLUMNS
-    row_bloc = original_pos // NB_COLUMNS
+def center_the_obj(original_pos, obj):
+    col_bloc = original_pos % NB_COLUMNS # Colonne dans la grille
+    row_bloc = original_pos // NB_COLUMNS # Ligne dans la grille
 
     min_col_obj = min(b[0] for b in obj)
     max_col_obj = max(b[0] for b in obj)
-    nb_col_obj = max_col_obj - min_col_obj + 1
+    nb_col_obj = max_col_obj - min_col_obj + 1 # Le nb de colonne de l'objet
 
     min_row_obj = min(b[1] for b in obj)
     max_row_obj = max(b[1] for b in obj)
-    nb_row_obj = max_row_obj - min_row_obj + 1
+    nb_row_obj = max_row_obj - min_row_obj + 1 # Le nb de ligne de l'objet
 
-    center_col = (min_col_obj + max_col_obj)/2
-    center_row = (min_row_obj + max_row_obj)/2 
+    center_col = (min_col_obj + max_col_obj)/2 # Moyenne : colonne du milieu de l'objet
+    center_row = (min_row_obj + max_row_obj)/2 # Moyenne : ligne du milieu de l'objet
 
     col_center_bloc = col_bloc + center_col
     row_center_bloc = row_bloc + center_row
 
-    x = X_START_GRID + BLOCK_SIZE * col_center_bloc
-    y = Y_START_GRID + BLOCK_SIZE * row_center_bloc
+    x = X_START_GRID + BLOCK_SIZE * col_center_bloc # Convertion en pixel
+    y = Y_START_GRID + BLOCK_SIZE * row_center_bloc  # Convertion en pixel
 
     return (x, y)
+
+    # La position de l'objet dans la grille (obj) correspond à
+    # l'emplacement où le coins supérieur gauche de l'objet doit être placé.
+    # Il faut donc calculer la case de la grille où le milieu de l'objet 
+    # doit être placé.
 
 def convert_to_coord(obj):
     pos = []
 
     if obj == "4h" or obj == "4v" or obj == "5h" or obj == "5v":
-        for spec_obj in specific_blocks:
+        for spec_obj in specific_objs:
             if spec_obj["name"] == obj:
                 pos = spec_obj["pos"]
         print(f"\n{pos}")
         return tuple(pos)
+        # Si c'est un objet spécifique (qui ne rentre pas dans la grille 6x6),
+        # les coord de l'objet sont prises dans la liste specific_objs
     
     for i, v in enumerate(obj): # i est l'index et v la valeur
         if v == 1:
@@ -370,7 +385,9 @@ def convert_to_coord(obj):
                     y -= pos[0][1] # avoir des coord relatives au point de départ
                 pos.append( (int(x), int(y)) ) # Ajoute le tuple
 
-    # Explications :
+    # Problème : Avec le décalage de certain objet, on prend
+    # une grille 6x6. Mais les objets sont en 3x3.
+    # On doit donc convertir du 6x6 en 3x3 :
     # On parcour la forme, jusqu'a trouver un 1
     # On calcule la colonne et la ligne
     # On continue uniquement si la colonne et la ligne sont paires
@@ -387,16 +404,68 @@ def convert_to_coord(obj):
     return tuple(pos)
 
 def verify_bar_3(obj):
-    return obj == specific_blocks[i_horizontal_B3]["shape"] or obj == specific_blocks[i_vertical_B3]["shape"]
+    return obj == specific_objs[i_horizontal_B3]["shape"] or obj == specific_objs[i_vertical_B3]["shape"]
 
+
+# Intéractions tactiles
+def move_block(pixel_from, pixel_to):
+    # Notre objet doit aller de A0 à B0. 
+    # Lorsque l'on clique sur l'obj, il est décalé en y (INCREASE_Y).
+    # Notre objet est donc à la position A1, alors que la souris est en A0.
+    # La souris doit donc aller en B1 (image de B + INCREASE_Y) pour que l'objet soit en B0.
+    # En allant de A à B1, il y a une accélération de l'objet.
+    # La souris doit donc aller en p_accel, qui est le point entre A et B1 
+    # qui prend en compte l'accélération pour que l'objet arrive pile sur B.
+    
+    B1 = (pixel_to[0], pixel_to[1] + INCREASE_Y)    # Arrivée - le décalage en cliquant sur l'obj = B1
+
+    dcx = B1[0] - pixel_from[0]
+    dcy = B1[1] - pixel_from[1]
+
+    dcx_accel = dcx/kx
+    dcy_accel = dcy/ky
+
+    p_accel = (pixel_from[0] + dcx_accel, pixel_from[1] + dcy_accel)
+
+    swipe_cmd = "shell input touchscreen swipe "
+    swipe_cmd += str(pixel_from[0]) + " " + str(pixel_from[1]) + " "
+    swipe_cmd += str(p_accel[0]) + " " + str(p_accel[1]) + " "
+    swipe_cmd += "1000"
+
+    adbconnect.adb_cmd(swipe_cmd)
+
+    print(f"Objet placé ici : x: {p_accel[0]} y: {p_accel[1]}\n\tdcy: {dcy} dcx: {dcx}")
 
 # Main
-def main(grid):
+def main(expected_grid):
     main_grid = ()
     objects = []
     coords_obj = ()
-    capture_screen()
-    screen = Image.open("screen.png")
+
+    if not deviceconfigured: # Configuration lors de la première exécution
+        adbconnect.choose_device()
+        print("")
+
+        nameIMG = adbconnect.capture_screen(PARENT_IMG_FOLDER)
+        pathIMG = PARENT_IMG_FOLDER + nameIMG
+
+        if not adbconnect.device:
+            deviceconfigured = False
+            expected_grid = None
+            # Le mode local ne prend pas de capture d'ecran,
+            # faire tourner le script plusieurs fois n'est donc pas utile,
+            # d'autant plus que les objets n'auront pas été placés, et que
+            # le script montrera une erreur : "La grille n'est pas celle attendue..."
+            # Une reconfiguration est donc redemandée à chaque fois.
+    
+    # capture_screen()
+    screen = Image.open(pathIMG)
+
+    if not screen:
+        print("Erreur: image non trouvée : " + pathIMG)
+        exit()
+
+
 
     print("\nGrille :\n")
     main_grid = get_grid_filling(
@@ -411,10 +480,10 @@ def main(grid):
         PRINT_GRID
     )
 
-    if main_grid != grid and grid != None:
-        print("\n\nLa grille n'est pas celle attendue...\nVoulue : ")
+    if main_grid != expected_grid and expected_grid != None:
+        print("\n\nLa grille n'est pas celle attendue...\nGrille voulue : ")
         grid_char = []
-        for iB, vB in enumerate(grid):
+        for iB, vB in enumerate(expected_grid):
             act_column = iB % NB_COLUMNS
             if act_column % NB_COLUMNS == 0:
                 print("")
@@ -596,7 +665,7 @@ def main(grid):
                 )
             ),
             (
-                center_the_block(pos_bloc, obj)
+                center_the_obj(pos_bloc, obj)
             )
         )
     

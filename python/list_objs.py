@@ -1,4 +1,54 @@
-blocks = [
+# Fichier contenant la liste des objets possibles de BlockBlast.
+# Le programme n'utilise que la liste specific_objs (car ils nécessitent un traitement particulier).
+# La liste basic_objs peut donc être supprimée sans aucun problème.
+# 
+# Je l'ai néanmoins laissé si une amélioration future envisage de prédire un score
+# en fonction des objets qui peuvent apparaître
+
+specific_objs = [
+    {
+        "name": "horizontalBar3",
+        "shape": (
+            0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0,
+            1, 1, 1, 1, 1, 1,
+            1, 1, 1, 1, 1, 1,
+            0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0
+        )
+    },
+    {
+        "name": "verticalBar3",
+        "shape": (
+            0, 0, 1, 1, 0, 0,
+            0, 0, 1, 1, 0, 0,
+            0, 0, 1, 1, 0, 0,
+            0, 0, 1, 1, 0, 0,
+            0, 0, 1, 1, 0, 0,
+            0, 0, 1, 1, 0, 0
+        )
+    },
+    {
+        "name": "4h",
+        "pos": ((0, 0), (1, 0), (2, 0), (3, 0))
+    },
+    {
+        "name": "4v",
+        "pos": ((0, 0), (0, 1), (0, 2), (0, 3))
+    },
+    {
+        "name": "5h",
+        "pos": ((0, 0), (1, 0), (2, 0), (3, 0), (4, 0))
+    },
+    {
+        "name": "5v",
+        "pos": ((0, 0), (0, 1), (0, 2), (0, 3), (0, 4))
+    }
+]
+
+
+
+basic_objs = [ # Pas utile pour le bot.
     {
         "name": "horizontalBar2",
         "shape": (
@@ -444,109 +494,3 @@ blocks = [
         "pos": ((0, 0), (-1, 1), (-2, 2))
     },
 ]
-
-specific_blocks = [
-    {
-        "name": "horizontalBar3",
-        "shape": (
-            0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0,
-            1, 1, 1, 1, 1, 1,
-            1, 1, 1, 1, 1, 1,
-            0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0
-        ),
-        "pos": ((0, 0), (1, 0), (2, 0))
-    },
-    {
-        "name": "verticalBar3",
-        "shape": (
-            0, 0, 1, 1, 0, 0,
-            0, 0, 1, 1, 0, 0,
-            0, 0, 1, 1, 0, 0,
-            0, 0, 1, 1, 0, 0,
-            0, 0, 1, 1, 0, 0,
-            0, 0, 1, 1, 0, 0
-        ),
-        "pos": ((0, 0), (0, 1), (0, 2))
-    },
-    {
-        "name": "4h",
-        "shape": None,
-        "pos": ((0, 0), (1, 0), (2, 0), (3, 0))
-    },
-    {
-        "name": "4v",
-        "shape": None,
-        "pos": ((0, 0), (0, 1), (0, 2), (0, 3))
-    },
-    {
-        "name": "5h",
-        "shape": None,
-        "pos": ((0, 0), (1, 0), (2, 0), (3, 0), (4, 0))
-    },
-    {
-        "name": "5v",
-        "shape": None,
-        "pos": ((0, 0), (0, 1), (0, 2), (0, 3), (0, 4))
-    }
-]
-
-def print_space(nb):
-    char = " " * nb
-    print(char, end="")
-
-def print_list(): # Affiche la liste des objets avec leur pos en se basant sur leur shape.
-    print("blocks = [")
-    for i, v in enumerate(blocks):
-        pos = []
-        if v["shape"] == "4h" or v["shape"] == "4v" or v["shape"] == "5h" or v["shape"] == "5v":
-            continue
-
-        for j, k in enumerate(v["shape"]): # i est l'index et v la valeur
-            if k == 1:
-                x = j % 6
-                y = j // 6
-
-                if x % 2 == 0 and y % 2 == 0:
-                    x = x/2
-                    y = y/2
-                    if len(pos) >= 1:
-                        x -= pos[0][0] # On enlève les coord de départ pour
-                        y -= pos[0][1] # avoir des coord relatives au point de départ
-                    pos.append( (int(x), int(y)) ) # Ajoute le tuple
-
-        # Explications :
-        # On parcour la forme, jusqu'a trouver un 1
-        # On calcule la colonne et la ligne
-        # On continue uniquement si la colonne et la ligne sont paires
-        # On divise par deux pour ne pas prendre en compte les colonnes et lignes impaires
-
-        # Tout cela fait que l'on passe d'une forme 6x6,
-        # où chaque pixel analysé est un demi bloc,
-        # à une forme 3x3, comme les vrais blocs du jeux
-
-        pos.pop(0)
-        pos.insert(0, (0, 0))
-
-        print_space(4)
-        print("{")
-
-        print_space(8)
-        print(f"\"name\": \"{v['name']}\",")
-
-        print_space(8)
-        print("\"shape\": [", end="")
-        for l, m in enumerate(v["shape"]):
-            if l % 6 == 0:
-                print()
-                print_space(12)
-            print(f"{m}, ", end="")
-        print("")
-        print_space(8)
-        print("],")
-        print_space(8)
-        print(f"\"pos\": {tuple(pos)}")
-        print_space(4)
-        print("},")
-    print("]")
