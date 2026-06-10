@@ -210,3 +210,4 @@ __marimo__/
 img/
 cpp_version/
 test/
+cpp/*

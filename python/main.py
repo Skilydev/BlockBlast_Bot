@@ -36,6 +36,7 @@ from list_objs import specific_objs # Objets spéciaux
 PARENT_IMG_FOLDER = "./img/" # /!\ IMPORTANT : ce dossier doit être préalablement créé.
 # Dossier dans lequel sera stockée l'image
 
+
 # Reflexion
 MAX_ASYNC_TASK = 3 # Nb maximal de coeur utilisé pour le calcul
 
@@ -56,10 +57,12 @@ O1X5_POINT = 15 # Points attribués si un 1x5 rentre dans la grille
 O5X1 = ((0, 0), (1, 0), (2, 0), (3, 0), (4, 0)) # Objet 5x1
 O5X1_POINT = 15 # Points attribués si un 5x1 rentre dans la grille
 
+
 # Déplacements /!\ specifique à l'app BlockBlast /!\
 INCREASE_Y = 308
 ky = 1.33
 kx = 1.3
+
 
 # Grille principale /!\ specifique à l'app BlockBlast /!\
 X_START_GRID = 120 # Position en x de départ de la grille 
@@ -73,6 +76,7 @@ COLOR_EMPTY = (25, 36, 66, 255) # Couleur si aucun bloc dans case
 TOLERANCE_GRID = 10 # Tolerance pour la couleur
 PRINT_GRID = True # Doit on afficher la grille dans la console ?
 
+
 # Grilles des objets /!\ specifique à l'app BlockBlast /!\
 X_START_OBJ_GRID = (158.5, 471.5, 786.5) # Positions en x de départ des grilles objets
 Y_START_OBJ_GRID = 1721.5 # Position en y de départ des grilles objets
@@ -85,6 +89,7 @@ COLOR_EMPTY_OBJ = (58, 81, 148, 255) # Couleur si aucun bloc dans case de grille
 TOLERANCE_OBJ_GRID = 25 # Tolerance pour la couleur
 PRINT_OBJECTS = True # Doit on afficher les objets dans la console ?
 
+
 # Objets spécifiques /!\ specifique à l'app BlockBlast /!\
 i_horizontal_B3 = 0 # Index de la barre horizontale de 3 bloc dans specific_objs
 i_vertical_B3 = 1 # Index de la barre verticale de 3 bloc dans specific_objs
@@ -92,6 +97,7 @@ i_vertical_B3 = 1 # Index de la barre verticale de 3 bloc dans specific_objs
 deviceconfigured = False # NE PAS TOUCHER
 nameIMG = "" # NE PAS TOUCHER
 pathIMG = "" # NE PAS TOUCHER
+
 
 
 # Classe des solutions virtuelles
@@ -113,6 +119,7 @@ class VirtualSolution:
         self.grid = new_grid
         self.pos_obj = self.pos_obj + (pos_obj,)
         self.pass_by_empty_grid = self.pass_by_empty_grid or 1 not in new_grid
+
 
 
 # Tout ce qui est lié à l'analyse
@@ -146,6 +153,7 @@ def get_grid_filling(screen, columns, rows, start_x, start_y, b_size, color_bloc
 
 def get_color_pixel(x, y, screen):
     return screen.getpixel((x, y))
+
 
 
 # Tout ce qui est lié aux calculs
@@ -331,6 +339,7 @@ def calculate_score(solution, max_score):
     return score
 
 
+
 # Tout ce qui est lié aux objets
 def center_the_obj(original_pos, obj):
     col_bloc = original_pos % NB_COLUMNS # Colonne dans la grille
@@ -407,6 +416,7 @@ def verify_bar_3(obj):
     return obj == specific_objs[i_horizontal_B3]["shape"] or obj == specific_objs[i_vertical_B3]["shape"]
 
 
+
 # Intéractions tactiles
 def move_block(pixel_from, pixel_to):
     # Notre objet doit aller de A0 à B0. 
@@ -435,6 +445,8 @@ def move_block(pixel_from, pixel_to):
     adbconnect.adb_cmd(swipe_cmd)
 
     print(f"Objet placé ici : x: {p_accel[0]} y: {p_accel[1]}\n\tdcy: {dcy} dcx: {dcx}")
+
+
 
 # Main
 def main(expected_grid):
@@ -551,10 +563,6 @@ def main(expected_grid):
                     objects[n] = "5h"
                 elif additional_px == (False, False):
                     print("Spec : no-spec", end="")
-                else :
-                    print(f"hmph hmph grr... {additional_px}")
-            else :
-                print(f"hmph... {additional_px}")
 
         if isinstance(objects[n], str) or 1 in objects[n]:
             coords_obj = coords_obj + (convert_to_coord(objects[n]),)
@@ -675,6 +683,8 @@ def main(expected_grid):
         time.sleep(wait_time/(int(wait_time) * 100))
         print(round(wait_time - t/100.0, 2), end="\r")
     main(best_slt.grid)
+
+
 
 if __name__ == "__main__":
     main(None)
