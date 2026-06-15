@@ -210,4 +210,6 @@ __marimo__/
 img/
 cpp_version/
 test/
-cpp/*
+cpp/output.txt
+cpp/stb_image.h
+cpp/main.exe
